@@ -171,6 +171,20 @@ void test_mkfs(){
     CTEST_ASSERT(root->block_ptr[0] != 0, "checking root inode block_ptr after mkfs");
 }
 
+void test_directory_make(){
+
+struct inode *root = iget(0);
+    CTEST_ASSERT(root != NULL, "checking root inode after directory_make");
+
+    struct directory *dir = directory_open(0);
+    struct directory_entry ent;
+    int ret2 = directory_get(dir, &ent);
+    CTEST_ASSERT(ret2 == 0, "checking directory_get return value after directory_make");
+
+    directory_close(dir);
+}
+
+
 int main(){
     CTEST_VERBOSE(1);
     
@@ -190,6 +204,7 @@ int main(){
     test_directory_close();
     test_ls();
     test_mkfs();
+    test_directory_make();
 
     CTEST_RESULTS();
     CTEST_EXIT();
