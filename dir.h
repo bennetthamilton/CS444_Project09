@@ -2,6 +2,7 @@
 #define DIR
 
 #define ENTRY_SIZE 32   // 2 bytes for inode number, 16 bytes for name, 14 bytes reserved
+#define ROOT_INODE 0    // inode number of the root directory
 
 struct directory {
     struct inode *in;
@@ -18,5 +19,7 @@ int directory_get(struct directory *dir, struct directory_entry *ent);
 void directory_close(struct directory *d);
 void ls(void);
 void mkfs(void);
+struct inode *namei(char *path);
+int directory_make(char *path);
 
 #endif

@@ -105,3 +105,108 @@ void mkfs(void){
     // call iput() to write the new direcory inode out to disk and free up the in-core inode
     iput(in);
 }
+
+// The namei() function does a variety of things:
+
+// If the path is /, it returns the root directory's in-core inode.
+// If the path is /foo, it returns foo's in-core inode.
+// If the path is /foo/bar, it returns bar's in-core inode.
+// If the path is invalid (i.e. a component isn't found), it returns NULL.
+// For this first part, simply implement namei() so it just returns the in-core inode for the root directory, /. The other bits can wait until later.
+
+// You'll want to use iget() with the root directory's inode number to get this information. (It's OK to #define ROOT_INODE_NUM 0 and use that.)
+
+struct inode *namei(char *path){
+
+    if (strcmp(path, "/") == 0) {
+        return iget(ROOT_INODE);
+    }
+
+    return NULL;
+}
+
+int directory_make(char *path){
+    // Check if it starts with /
+    if (path[0] == '/'){
+        return -1;
+    }
+
+    // Find directory path that will contain the new directory
+    char *parent_path = strdup(path);
+
+    // Find new directory name from the path
+    char *new_dir_name = strrchr(path, '/');
+    if (new_dir_name == NULL) {
+        free(parent_path);
+        return -1;
+    }
+    *new_dir_name = '\0';
+    new_dir_name++;
+
+    // Find the inode for the parent that will hold the new entry
+    struct inode *parent_in = namei(parent_path);
+    free(parent_path);
+    if (parent_in == NULL) {
+        return -1;
+    }
+
+    // Create a new inode for the new directory
+    struct inode *in = ialloc();
+    if (in == NULL) {
+        iput(parent_path);
+        return -1;
+    }
+
+    // Create a new data block for the new directory entries
+    int block_num = alloc();
+    if (block_num == -1) {
+        iput(in);
+        iput(parent_in);
+        return -1;
+    }
+
+    // Initialize the new directory's inode with proper size, flags, and block_ptr[0]
+    in->size = 2 * ENTRY_SIZE;
+    in->flags = 2;
+    in->block_ptr[0] = block_num;
+
+    // Create a new block-sized array for the new directory data block and initialize it . and .. files
+    unsigned char block[BLOCK_SIZE];
+    memset(block, 0, BLOCK_SIZE);
+    // . should contain the new directory's inode number
+    write_u16(block, in->inode_num);
+    strcpy((char *)(block + 2), ".");
+    // .. should contain the parent directory's inode number
+    write_u16(block + ENTRY_SIZE, parent_in->inode_num);
+    strcpy((char *)(block + ENTRY_SIZE + 2), "..");
+
+    // Write the new directory data block to disk
+    bwrite(block_num, block);
+
+    // From the parent directory inode, find the block that will contain the new directory entry 
+    int parent_block_index = parent_in->size / BLOCK_SIZE;
+    int parent_block_offset = parent_in->size % BLOCK_SIZE;
+
+    // Read that block into memory unless you're creating a new one (bread), and add the new directory entry into it
+    unsigned char parent_block[BLOCK_SIZE];
+    if (parent_block_offset == 0) {
+        parent_in->block_ptr[parent_block_index] = alloc();
+        bwrite(parent_in->block_ptr[parent_block_index], parent_block);
+    } else {
+        bread(parent_in->block_ptr[parent_block_index], parent_block);
+    }
+
+    // Write the block back to disk (bwrite)
+    bwrite(parent_in->block_ptr[parent_block_index], parent_block);
+
+    // Update the parent directory's inode to reflect the new directory entry
+    parent_in->size += ENTRY_SIZE;
+    write_inode(parent_in);
+
+    // Release the new directory's in-core inode (iput)
+    iput(in);
+
+    // Release the parent directory's in-core inode (iput)
+    iput(parent_in);
+
+}
