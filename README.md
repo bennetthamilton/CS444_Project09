@@ -48,4 +48,5 @@ Run: `./main`
     - directory_close: Closes directory.
     - ls: Lists contents in current directory.
     - mkfs: Initializes new filesystem.
-    
+    - namei: Return the root inode
+    - directory_make: Initialize new directory at given path
